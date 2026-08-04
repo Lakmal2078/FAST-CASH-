@@ -1,0 +1,6 @@
+{
+  "name": "Fast Xbet Cashier",
+  "description": "Fast, secure 1xBet cashier app for deposits and withdrawals in Sri Lanka",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
