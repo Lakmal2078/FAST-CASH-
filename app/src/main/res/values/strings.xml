@@ -114,6 +114,9 @@
     <string name="err_empty_field">Please fill in all required fields.</string>
     <string name="err_pending_withdraw_exists">You already have a PENDING withdrawal request (#%1$s %2$s). Please wait for approval.</string>
     <string name="err_duplicate_slip">This receipt has already been submitted.</string>
+    <string name="err_duplicate_request">This request has already been processed.</string>
+    <string name="err_network_error">Network error. Please check your connection and try again.</string>
+    <string name="err_api_error">Server error. Please try again later.</string>
     <string name="err_invalid_file">Please upload a valid JPG or PNG image (Max 5MB). PDFs are not supported.</string>
     <string name="err_submit_deposit_failed">Failed to submit deposit. Please try again.</string>
     <string name="err_submit_withdraw_failed">Failed to submit withdrawal request.</string>

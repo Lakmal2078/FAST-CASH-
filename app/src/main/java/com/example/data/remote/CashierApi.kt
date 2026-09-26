@@ -1,14 +1,21 @@
 package com.example.data.remote
 
 import retrofit2.http.Body
+import retrofit2.http.Header
 import retrofit2.http.POST
 
 interface CashierApi {
     @POST("deposit")
-    suspend fun submitDeposit(@Body request: SubmitDepositRequest): SubmitDepositResponse
+    suspend fun submitDeposit(
+        @Header("Idempotency-Key") idempotencyKey: String? = null,
+        @Body request: SubmitDepositRequest
+    ): SubmitDepositResponse
 
     @POST("withdrawal")
-    suspend fun submitWithdrawal(@Body request: SubmitWithdrawalRequest): SubmitWithdrawalResponse
+    suspend fun submitWithdrawal(
+        @Header("Idempotency-Key") idempotencyKey: String? = null,
+        @Body request: SubmitWithdrawalRequest
+    ): SubmitWithdrawalResponse
 }
 
 data class SubmitDepositRequest(

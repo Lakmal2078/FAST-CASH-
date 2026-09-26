@@ -10,8 +10,9 @@ class SubmitWithdrawalUseCase(private val repository: CashierRepository) {
         bankName: String,
         accountHolder: String,
         accountNumber: String,
-        branch: String
+        branch: String,
+        idempotencyKey: String? = null
     ): Result<Long> {
-        return repository.submitWithdrawal(playerId, amountMinorUnits, secretCode, bankName, accountHolder, accountNumber, branch)
+        return repository.submitWithdrawal(playerId, amountMinorUnits, secretCode, bankName, accountHolder, accountNumber, branch, idempotencyKey)
     }
 }

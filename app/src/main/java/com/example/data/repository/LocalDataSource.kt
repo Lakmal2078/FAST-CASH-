@@ -33,10 +33,12 @@ class LocalDataSource(
     suspend fun updateSavedBank(bankName: String, holder: String, accNo: String, branch: String) = userDao.updateSavedBank(bankName, holder, accNo, branch)
 
     suspend fun getDepositByReference(reference: String) = depositDao.getDepositByReference(reference)
+    suspend fun getDepositByIdempotencyKey(key: String) = depositDao.getDepositByIdempotencyKey(key)
     suspend fun insertDeposit(deposit: DepositEntity): Long = depositDao.insertDeposit(deposit)
     suspend fun updateDepositStatus(id: Long, status: String) = depositDao.updateStatus(id, status)
 
     suspend fun getPendingWithdrawal(): WithdrawalEntity? = withdrawalDao.getPendingWithdrawal()
+    suspend fun getWithdrawalByIdempotencyKey(key: String) = withdrawalDao.getWithdrawalByIdempotencyKey(key)
     suspend fun insertWithdrawal(withdrawal: WithdrawalEntity): Long = withdrawalDao.insertWithdrawal(withdrawal)
     suspend fun insertWithdrawalIfNoPending(withdrawal: WithdrawalEntity): Long = withdrawalDao.insertWithdrawalIfNoPending(withdrawal)
     suspend fun deleteWithdrawal(id: Long) = withdrawalDao.deleteById(id)

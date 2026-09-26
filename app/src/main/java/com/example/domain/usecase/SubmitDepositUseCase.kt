@@ -10,8 +10,9 @@ class SubmitDepositUseCase(private val repository: CashierRepository) {
         amountText: String,
         amountMinorUnits: Long,
         slipUri: String?,
-        reference: String
+        reference: String,
+        idempotencyKey: String? = null
     ): Result<Long> {
-        return repository.submitDeposit(playerId, bankName, amountText, amountMinorUnits, slipUri, reference)
+        return repository.submitDeposit(playerId, bankName, amountText, amountMinorUnits, slipUri, reference, idempotencyKey)
     }
 }

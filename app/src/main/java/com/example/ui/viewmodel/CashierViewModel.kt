@@ -202,6 +202,7 @@ class CashierViewModel @Inject constructor(
         val amountText = ai?.amountText ?: "LKR 5,000"
         val amountMinorUnits = ai?.amountValue?.let { (it * 100).toLong() } ?: 500000L
         val ref = ai?.reference ?: ""
+        val idempotencyKey = "dep-${System.currentTimeMillis()}-${playerId.takeLast(4)}"
 
         viewModelScope.launch {
             val result = submitDepositUseCase(
@@ -210,7 +211,8 @@ class CashierViewModel @Inject constructor(
                 amountText = amountText,
                 amountMinorUnits = amountMinorUnits,
                 slipUri = _uploadedSlipUri.value?.toString(),
-                reference = ref
+                reference = ref,
+                idempotencyKey = idempotencyKey
             )
 
             result.onSuccess {
@@ -221,8 +223,20 @@ class CashierViewModel @Inject constructor(
                     ex.message?.startsWith("DUPLICATE_SLIP") == true -> {
                         _uiMessage.value = UiMessage.ErrorRes(R.string.err_duplicate_slip)
                     }
-                    ex.message == "INVALID_PLAYER_ID" -> {
+                    ex.message?.startsWith("DUPLICATE_REQUEST") == true -> {
+                        _uiMessage.value = UiMessage.ErrorRes(R.string.err_duplicate_request)
+                    }
+                    ex.message?.startsWith("INVALID_PLAYER_ID") == true -> {
                         _uiMessage.value = UiMessage.ErrorRes(R.string.err_invalid_player_id)
+                    }
+                    ex.message?.startsWith("INVALID_AMOUNT") == true -> {
+                        _uiMessage.value = UiMessage.ErrorRes(R.string.err_invalid_amount)
+                    }
+                    ex.message?.startsWith("NETWORK_ERROR") == true -> {
+                        _uiMessage.value = UiMessage.ErrorRes(R.string.err_network_error)
+                    }
+                    ex.message?.startsWith("API_ERROR") == true -> {
+                        _uiMessage.value = UiMessage.ErrorRes(R.string.err_api_error)
                     }
                     else -> {
                         _uiMessage.value = UiMessage.ErrorRes(R.string.err_submit_deposit_failed)
@@ -263,6 +277,8 @@ class CashierViewModel @Inject constructor(
             return
         }
 
+        val idempotencyKey = "wdr-${System.currentTimeMillis()}-${pId.takeLast(4)}"
+
         viewModelScope.launch {
             val result = submitWithdrawalUseCase(
                 playerId = pId,
@@ -271,7 +287,8 @@ class CashierViewModel @Inject constructor(
                 bankName = bank,
                 accountHolder = holder,
                 accountNumber = accNo,
-                branch = branch
+                branch = branch,
+                idempotencyKey = idempotencyKey
             )
 
             result.onSuccess {
@@ -287,11 +304,23 @@ class CashierViewModel @Inject constructor(
                         val amt = if (parts.size > 2) parts[2] else ""
                         _uiMessage.value = UiMessage.ErrorRes(R.string.err_pending_withdraw_exists, listOf(id, amt))
                     }
-                    msg == "INVALID_PLAYER_ID" -> {
+                    msg.startsWith("DUPLICATE_REQUEST") -> {
+                        _uiMessage.value = UiMessage.ErrorRes(R.string.err_duplicate_request)
+                    }
+                    msg.startsWith("INVALID_PLAYER_ID") -> {
                         _uiMessage.value = UiMessage.ErrorRes(R.string.err_invalid_player_id)
                     }
-                    msg == "INVALID_AMOUNT" -> {
+                    msg.startsWith("INVALID_AMOUNT") -> {
                         _uiMessage.value = UiMessage.ErrorRes(R.string.err_invalid_amount)
+                    }
+                    msg.startsWith("MISSING_REQUIRED_FIELDS") -> {
+                        _uiMessage.value = UiMessage.ErrorRes(R.string.err_empty_field)
+                    }
+                    msg.startsWith("NETWORK_ERROR") -> {
+                        _uiMessage.value = UiMessage.ErrorRes(R.string.err_network_error)
+                    }
+                    msg.startsWith("API_ERROR") -> {
+                        _uiMessage.value = UiMessage.ErrorRes(R.string.err_api_error)
                     }
                     else -> {
                         _uiMessage.value = UiMessage.ErrorRes(R.string.err_submit_withdraw_failed)

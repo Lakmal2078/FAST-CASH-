@@ -19,12 +19,12 @@ import com.example.data.local.entity.WithdrawalEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-// import net.sqlcipher.database.SupportFactory
+import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 import java.security.SecureRandom
 
 @Database(
     entities = [UserEntity::class, DepositEntity::class, WithdrawalEntity::class, BankEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -41,18 +41,20 @@ abstract class AppDatabase : RoomDatabase() {
         private const val DATABASE_NAME = "fastxbet_cashier.db"
         private const val SECURE_PREFS_NAME = "secure_db_prefs"
         private const val KEY_DB_PASSPHRASE = "db_passphrase"
+        private const val KEY_DB_ENCRYPTED = "db_encrypted"
 
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val passphrase = getOrCreateDatabasePassphrase(context)
-                // val factory = SupportFactory(passphrase)
+                
+                val factory = SupportOpenHelperFactory(passphrase)
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     DATABASE_NAME
                 )
-                    // .openHelperFactory(factory)
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .openHelperFactory(factory)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .addCallback(DatabaseCallback())
                     .build()
                 INSTANCE = instance
@@ -102,6 +104,18 @@ abstract class AppDatabase : RoomDatabase() {
                 database.execSQL(
                     "CREATE UNIQUE INDEX IF NOT EXISTS index_deposits_reference ON deposits(reference)"
                 )
+            }
+        }
+
+        internal val MIGRATION_4_5 = object : androidx.room.migration.Migration(4, 5) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add idempotencyKey columns to both tables
+                database.execSQL("ALTER TABLE deposits ADD COLUMN idempotencyKey TEXT")
+                database.execSQL("ALTER TABLE withdrawals ADD COLUMN idempotencyKey TEXT")
+                
+                // Create indexes for idempotency keys
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_deposits_idempotency ON deposits(idempotencyKey)")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_withdrawals_idempotency ON withdrawals(idempotencyKey)")
             }
         }
 

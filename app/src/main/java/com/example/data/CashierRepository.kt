@@ -51,12 +51,28 @@ class CashierRepository(
         amountText: String,
         amountMinorUnits: Long,
         slipUri: String?,
-        reference: String
+        reference: String,
+        idempotencyKey: String? = null
     ): Result<Long> {
+        // Validate player ID
         if (!playerId.matches(Regex("^[0-9]{5,12}$"))) {
             return Result.failure(IllegalArgumentException("INVALID_PLAYER_ID"))
         }
 
+        // Validate amount
+        if (amountMinorUnits <= 0) {
+            return Result.failure(IllegalArgumentException("INVALID_AMOUNT: must be positive"))
+        }
+
+        // Validate field lengths before remote call
+        if (bankName.length > 100) {
+            return Result.failure(IllegalArgumentException("INVALID_BANK_NAME: must be <= 100 characters"))
+        }
+        if (reference.length > 100) {
+            return Result.failure(IllegalArgumentException("INVALID_REFERENCE: must be <= 100 characters"))
+        }
+
+        // Check for duplicate reference
         if (reference.isNotEmpty()) {
             val existing = localDataSource.getDepositByReference(reference)
             if (existing != null) {
@@ -64,7 +80,16 @@ class CashierRepository(
             }
         }
 
+        // Check for duplicate idempotency key
+        if (!idempotencyKey.isNullOrEmpty()) {
+            val existing = localDataSource.getDepositByIdempotencyKey(idempotencyKey)
+            if (existing != null) {
+                return Result.failure(IllegalStateException("DUPLICATE_REQUEST:$idempotencyKey"))
+            }
+        }
+
         val generatedRef = if (reference.isEmpty()) "DEP-${System.currentTimeMillis().toString().takeLast(6)}" else reference
+        val generatedIdempotencyKey = idempotencyKey ?: "dep-${System.currentTimeMillis()}-${playerId.takeLast(4)}"
 
         val request = SubmitDepositRequest(
             playerId = playerId,
@@ -75,13 +100,13 @@ class CashierRepository(
         )
 
         val response = try {
-            remoteRepository.submitDeposit(request)
+            remoteRepository.submitDeposit(request, generatedIdempotencyKey)
         } catch (error: Throwable) {
-            return Result.failure(IllegalStateException("REMOTE_DEPOSIT_FAILED", error))
+            return Result.failure(IllegalStateException("NETWORK_ERROR: ${error.message}", error))
         }
 
         if (!response.success) {
-            return Result.failure(IllegalStateException("REMOTE_DEPOSIT_FAILED"))
+            return Result.failure(IllegalStateException("API_ERROR: ${response.depositId}"))
         }
 
         val deposit = DepositEntity(
@@ -92,10 +117,20 @@ class CashierRepository(
             amountMinorUnits = amountMinorUnits,
             slipUri = slipUri,
             status = "PENDING",
-            reference = generatedRef
+            reference = generatedRef,
+            idempotencyKey = generatedIdempotencyKey
         )
 
-        val id = localDataSource.insertDeposit(deposit)
+        val id = try {
+            localDataSource.insertDeposit(deposit)
+        } catch (e: Exception) {
+            // Handle unique constraint violation (duplicate reference)
+            if (e.message?.contains("UNIQUE constraint failed") == true ||
+                e.message?.contains("reference") == true) {
+                return Result.failure(IllegalStateException("DUPLICATE_SLIP:reference_already_exists"))
+            }
+            throw e
+        }
         updatePlayerId(playerId)
         return Result.success(id)
     }
@@ -107,15 +142,50 @@ class CashierRepository(
         bankName: String,
         accountHolder: String,
         accountNumber: String,
-        branch: String
+        branch: String,
+        idempotencyKey: String? = null
     ): Result<Long> {
+        // Validate player ID
         if (!playerId.matches(Regex("^[0-9]{5,12}$"))) {
             return Result.failure(IllegalArgumentException("INVALID_PLAYER_ID"))
         }
 
+        // Validate amount (LKR 1,000 to LKR 500,000)
         if (amountMinorUnits < 100_000 || amountMinorUnits > 50_000_000) {
-            return Result.failure(IllegalArgumentException("INVALID_AMOUNT"))
+            return Result.failure(IllegalArgumentException("INVALID_AMOUNT: must be between LKR 1,000 and LKR 500,000"))
         }
+
+        // Validate required fields
+        if (secretCode.isBlank() || bankName.isBlank() || accountHolder.isBlank() || accountNumber.isBlank()) {
+            return Result.failure(IllegalArgumentException("MISSING_REQUIRED_FIELDS"))
+        }
+
+        // Validate field lengths before remote call
+        if (secretCode.length > 50) {
+            return Result.failure(IllegalArgumentException("INVALID_SECRET_CODE: must be <= 50 characters"))
+        }
+        if (bankName.length > 100) {
+            return Result.failure(IllegalArgumentException("INVALID_BANK_NAME: must be <= 100 characters"))
+        }
+        if (accountHolder.length > 100) {
+            return Result.failure(IllegalArgumentException("INVALID_ACCOUNT_HOLDER: must be <= 100 characters"))
+        }
+        if (accountNumber.length > 50) {
+            return Result.failure(IllegalArgumentException("INVALID_ACCOUNT_NUMBER: must be <= 50 characters"))
+        }
+        if (branch.length > 100) {
+            return Result.failure(IllegalArgumentException("INVALID_BRANCH: must be <= 100 characters"))
+        }
+
+        // Check for duplicate idempotency key
+        if (!idempotencyKey.isNullOrEmpty()) {
+            val existing = localDataSource.getWithdrawalByIdempotencyKey(idempotencyKey)
+            if (existing != null) {
+                return Result.failure(IllegalStateException("DUPLICATE_REQUEST:$idempotencyKey"))
+            }
+        }
+
+        val generatedIdempotencyKey = idempotencyKey ?: "wdr-${System.currentTimeMillis()}-${playerId.takeLast(4)}"
 
         val request = SubmitWithdrawalRequest(
             playerId = playerId,
@@ -128,13 +198,13 @@ class CashierRepository(
         )
 
         val response = try {
-            remoteRepository.submitWithdrawal(request)
+            remoteRepository.submitWithdrawal(request, generatedIdempotencyKey)
         } catch (error: Throwable) {
-            return Result.failure(IllegalStateException("REMOTE_WITHDRAWAL_FAILED", error))
+            return Result.failure(IllegalStateException("NETWORK_ERROR: ${error.message}", error))
         }
 
         if (!response.success) {
-            return Result.failure(IllegalStateException("REMOTE_WITHDRAWAL_FAILED"))
+            return Result.failure(IllegalStateException("API_ERROR: ${response.withdrawalId}"))
         }
 
         val withdrawal = WithdrawalEntity(
@@ -147,7 +217,8 @@ class CashierRepository(
             accountHolder = accountHolder,
             accountNumber = accountNumber,
             branch = branch,
-            status = "PENDING"
+            status = "PENDING",
+            idempotencyKey = generatedIdempotencyKey
         )
 
         val id = localDataSource.insertWithdrawalIfNoPending(withdrawal)
