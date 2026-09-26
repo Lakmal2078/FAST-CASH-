@@ -21,7 +21,7 @@ interface DepositDao {
     @Query("SELECT * FROM deposits WHERE idempotencyKey = :key LIMIT 1")
     suspend fun getDepositByIdempotencyKey(key: String): DepositEntity?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertDeposit(deposit: DepositEntity): Long
 
     @Query("UPDATE deposits SET status = :status WHERE id = :id")

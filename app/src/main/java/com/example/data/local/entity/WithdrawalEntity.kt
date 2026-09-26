@@ -27,7 +27,10 @@ data class WithdrawalEntity(
 ) {
     init {
         require(playerId.length in 5..12) { "Player ID must be 5-12 digits" }
-        require(amountMinorUnits in 100_000..50_000_000) { "Withdrawal amount must be between LKR 1,000 and LKR 500,000" }
+        // Allow zero for legacy migrations, but validate for new submissions
+        if (amountMinorUnits != 0L) {
+            require(amountMinorUnits in 100_000..50_000_000) { "Withdrawal amount must be between LKR 1,000 and LKR 500,000" }
+        }
         require(secretCode.length <= 50) { "Secret code must be <= 50 characters" }
         require(bankName.length <= 100) { "Bank name must be <= 100 characters" }
         require(accountHolder.length <= 100) { "Account holder must be <= 100 characters" }

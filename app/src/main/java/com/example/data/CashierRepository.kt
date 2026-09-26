@@ -64,6 +64,14 @@ class CashierRepository(
             return Result.failure(IllegalArgumentException("INVALID_AMOUNT: must be positive"))
         }
 
+        // Validate field lengths before remote call
+        if (bankName.length > 100) {
+            return Result.failure(IllegalArgumentException("INVALID_BANK_NAME: must be <= 100 characters"))
+        }
+        if (reference.length > 100) {
+            return Result.failure(IllegalArgumentException("INVALID_REFERENCE: must be <= 100 characters"))
+        }
+
         // Check for duplicate reference
         if (reference.isNotEmpty()) {
             val existing = localDataSource.getDepositByReference(reference)
@@ -92,7 +100,7 @@ class CashierRepository(
         )
 
         val response = try {
-            remoteRepository.submitDeposit(request)
+            remoteRepository.submitDeposit(request, generatedIdempotencyKey)
         } catch (error: Throwable) {
             return Result.failure(IllegalStateException("NETWORK_ERROR: ${error.message}", error))
         }
@@ -113,7 +121,16 @@ class CashierRepository(
             idempotencyKey = generatedIdempotencyKey
         )
 
-        val id = localDataSource.insertDeposit(deposit)
+        val id = try {
+            localDataSource.insertDeposit(deposit)
+        } catch (e: Exception) {
+            // Handle unique constraint violation (duplicate reference)
+            if (e.message?.contains("UNIQUE constraint failed") == true ||
+                e.message?.contains("reference") == true) {
+                return Result.failure(IllegalStateException("DUPLICATE_SLIP:reference_already_exists"))
+            }
+            throw e
+        }
         updatePlayerId(playerId)
         return Result.success(id)
     }
@@ -143,6 +160,23 @@ class CashierRepository(
             return Result.failure(IllegalArgumentException("MISSING_REQUIRED_FIELDS"))
         }
 
+        // Validate field lengths before remote call
+        if (secretCode.length > 50) {
+            return Result.failure(IllegalArgumentException("INVALID_SECRET_CODE: must be <= 50 characters"))
+        }
+        if (bankName.length > 100) {
+            return Result.failure(IllegalArgumentException("INVALID_BANK_NAME: must be <= 100 characters"))
+        }
+        if (accountHolder.length > 100) {
+            return Result.failure(IllegalArgumentException("INVALID_ACCOUNT_HOLDER: must be <= 100 characters"))
+        }
+        if (accountNumber.length > 50) {
+            return Result.failure(IllegalArgumentException("INVALID_ACCOUNT_NUMBER: must be <= 50 characters"))
+        }
+        if (branch.length > 100) {
+            return Result.failure(IllegalArgumentException("INVALID_BRANCH: must be <= 100 characters"))
+        }
+
         // Check for duplicate idempotency key
         if (!idempotencyKey.isNullOrEmpty()) {
             val existing = localDataSource.getWithdrawalByIdempotencyKey(idempotencyKey)
@@ -164,7 +198,7 @@ class CashierRepository(
         )
 
         val response = try {
-            remoteRepository.submitWithdrawal(request)
+            remoteRepository.submitWithdrawal(request, generatedIdempotencyKey)
         } catch (error: Throwable) {
             return Result.failure(IllegalStateException("NETWORK_ERROR: ${error.message}", error))
         }
