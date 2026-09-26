@@ -19,7 +19,7 @@ import com.example.data.local.entity.WithdrawalEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-// import net.sqlcipher.database.SupportFactory
+import net.sqlcipher.database.SupportFactory
 import java.security.SecureRandom
 
 @Database(
@@ -45,13 +45,13 @@ abstract class AppDatabase : RoomDatabase() {
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val passphrase = getOrCreateDatabasePassphrase(context)
-                // val factory = SupportFactory(passphrase)
+                val factory = SupportFactory(passphrase)
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     DATABASE_NAME
                 )
-                    // .openHelperFactory(factory)
+                    .openHelperFactory(factory)
                     .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .addCallback(DatabaseCallback())
                     .build()

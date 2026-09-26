@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface DepositDao {
-    @Query("SELECT * FROM deposits ORDER BY createdAt DESC")
+    @Query("SELECT * FROM deposits ORDER BY createdAt DESC LIMIT 100")
     fun getAllDepositsFlow(): Flow<List<DepositEntity>>
 
     @Query("SELECT * FROM deposits WHERE status = 'PENDING' ORDER BY createdAt DESC")
@@ -17,6 +17,9 @@ interface DepositDao {
 
     @Query("SELECT * FROM deposits WHERE reference = :ref LIMIT 1")
     suspend fun getDepositByReference(ref: String): DepositEntity?
+
+    @Query("SELECT * FROM deposits WHERE idempotencyKey = :key LIMIT 1")
+    suspend fun getDepositByIdempotencyKey(key: String): DepositEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertDeposit(deposit: DepositEntity): Long
@@ -26,4 +29,7 @@ interface DepositDao {
 
     @Query("SELECT COUNT(*) FROM deposits WHERE status = 'PENDING'")
     fun getPendingCountFlow(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM deposits")
+    fun getTotalCountFlow(): Flow<Int>
 }

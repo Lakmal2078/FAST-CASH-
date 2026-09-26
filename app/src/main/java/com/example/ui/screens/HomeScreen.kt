@@ -83,7 +83,7 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Top Promo Banner (VGSL Code & CTA)
-        TopPromoBannerCard(context)
+        TopPromoBannerCard(context, onNavigateGuide)
 
         // Hero Banner Card
         HeroBannerCard()
@@ -131,10 +131,7 @@ fun HomeScreen(
                 title = stringResource(R.string.menu_registration),
                 icon = Icons.Default.Star,
                 modifier = Modifier.weight(1f),
-                onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622"))
-                    context.startActivity(intent)
-                }
+                onClick = onNavigateGuide
             )
 
             SecondaryFeatureCard(
@@ -346,9 +343,11 @@ fun ActionCard(
 }
 
 @Composable
-fun TopPromoBannerCard(context: Context) {
+fun TopPromoBannerCard(
+    context: Context,
+    onNavigateGuide: () -> Unit
+) {
     val promoCode = stringResource(R.string.promo_code_value)
-    val promoUrl = "https://reffpa.com/L?tag=d_2481353m_1622c_&site=2481353&ad=1622"
 
     Card(
         shape = RoundedCornerShape(20.dp),
@@ -455,16 +454,9 @@ fun TopPromoBannerCard(context: Context) {
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // CTA Button
+                // CTA Button - navigates to guide instead of external link
                 Button(
-                    onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(promoUrl))
-                        try {
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
-                            Toast.makeText(context, "Could not open link", Toast.LENGTH_SHORT).show()
-                        }
-                    },
+                    onClick = onNavigateGuide,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = SecondaryGold,
                         contentColor = Color.Black

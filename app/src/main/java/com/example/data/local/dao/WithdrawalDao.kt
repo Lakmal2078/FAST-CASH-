@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface WithdrawalDao {
-    @Query("SELECT * FROM withdrawals ORDER BY createdAt DESC")
+    @Query("SELECT * FROM withdrawals ORDER BY createdAt DESC LIMIT 100")
     fun getAllWithdrawalsFlow(): Flow<List<WithdrawalEntity>>
 
     @Query("SELECT * FROM withdrawals WHERE status = 'PENDING' ORDER BY createdAt DESC")
@@ -21,6 +21,9 @@ interface WithdrawalDao {
 
     @Query("SELECT * FROM withdrawals WHERE id = :id LIMIT 1")
     suspend fun getWithdrawalById(id: Long): WithdrawalEntity?
+
+    @Query("SELECT * FROM withdrawals WHERE idempotencyKey = :key LIMIT 1")
+    suspend fun getWithdrawalByIdempotencyKey(key: String): WithdrawalEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertWithdrawal(withdrawal: WithdrawalEntity): Long
@@ -40,4 +43,7 @@ interface WithdrawalDao {
 
     @Query("SELECT COUNT(*) FROM withdrawals WHERE status = 'PENDING'")
     fun getPendingCountFlow(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM withdrawals")
+    fun getTotalCountFlow(): Flow<Int>
 }
